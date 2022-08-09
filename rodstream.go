@@ -17,27 +17,40 @@ import (
 	"github.com/go-rod/rod/lib/launcher"
 	"github.com/go-rod/rod/lib/proto"
 	"github.com/ysmood/gson"
+	"golang.org/x/exp/slices"
 )
 
-func MustPrepareLauncher() *launcher.Launcher {
-	var (
-		extPath     = "./extension/recorder"
-		extensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
-		absExtPath  = filepath.Join(getModPath(), extPath)
-	)
+type StreamConstraints struct {
+	Audio              bool   `json:"audio"`
+	Video              bool   `json:"video"`
+	MimeType           string `json:"mimeType,omitempty"`
+	AudioBitsPerSecond int    `json:"audioBitsPerSecond,omitempty"`
+	VideoBitsPerSecond int    `json:"videoBitsPerSecond,omitempty"`
+	BitsPerSecond      int    `json:"bitsPerSecond,omitempty"`
+	FrameSize          int    `json:"frameSize,omitempty"`
+}
 
-	launcher := launcher.New().
+var (
+	extensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
+	extPath     = filepath.Join(getModPath(), "./extension/recorder")
+)
+
+// MustPrepareLauncher loads the extension and sets required parameters
+func MustPrepareLauncher() *launcher.Launcher {
+
+	l := launcher.New().
 		Set("allow-http-screen-capture").
 		Set("enable-usermedia-screen-capturing").
 		Set("whitelisted-extension-id", extensionId).
-		Set("disable-extensions-except", absExtPath).
-		Set("load-extension", absExtPath).
+		Set("disable-extensions-except", extPath).
+		Set("load-extension", extPath).
 		Set("allow-google-chromefile-access").
 		Headless(false)
 
-	return launcher
+	return l
 }
 
+// GrantPermissions grants Video & Audio permissions to the
 func GrantPermissions(urls []string, browser *rod.Browser) error {
 	if len(urls) == 0 {
 		return errors.New("at least one url is required")
@@ -56,19 +69,22 @@ func GrantPermissions(urls []string, browser *rod.Browser) error {
 	return nil
 }
 
-type StreamConstraints struct {
-	Audio              bool   `json:"audio"`
-	Video              bool   `json:"video"`
-	MimeType           string `json:"mimeType,omitempty"`
-	AudioBitsPerSecond int    `json:"audioBitsPerSecond,omitempty"`
-	VideoBitsPerSecond int    `json:"videoBitsPerSecond,omitempty"`
-	BitsPerSecond      int    `json:"bitsPerSecond,omitempty"`
-	FrameSize          int    `json:"frameSize,omitempty"`
-}
-
 // MustCreatePage Must call the browser to capture the extension first handshake
 // returns a page that can be used to capture video
 func MustCreatePage(browser *rod.Browser) *rod.Page {
+	x, _ := proto.BrowserGetBrowserCommandLine{}.Call(browser)
+	if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", extensionId)) {
+		panic("Recording extension not initialize properly!")
+	}
+
+	if slices.Contains(x.Arguments, "--headless") {
+		msg := `
+		Headless mode is not supported for rod-stream.
+		use "XVFB()" in place of "Headless(true)".
+		`
+		panic(msg)
+	}
+
 	var (
 		targets, _       = proto.TargetGetTargets{}.Call(browser)
 		videoCapturePage *rod.Page
@@ -82,7 +98,7 @@ func MustCreatePage(browser *rod.Browser) *rod.Page {
 			//goland:noinspection GoUnhandledErrorResult
 			err := proto.PageBringToFront{}.Call(videoCapturePage)
 			if err != nil {
-				log.Panicln("Failed to focus tab!")
+				panic("Failed to focus tab!")
 			}
 
 			break
@@ -93,14 +109,18 @@ func MustCreatePage(browser *rod.Browser) *rod.Page {
 }
 
 // MustGetStream Gets a stream from the browser's page
-func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstraints, ch chan string) {
+func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstraints, ch chan string) error {
+	if videoCapturePage == nil {
+		return errors.New("videoCapturePage not created yet, call MustCreatePage")
+	}
+
 	pInfo := videoCapturePage.MustInfo()
 	if pInfo.Type != proto.TargetTargetInfoTypeBackgroundPage {
-		log.Panicln("Page is not a background page, cannot get stream!")
+		return errors.New("page is not a background page, cannot get stream")
 	}
 
 	if pInfo.Title != "Video Streamer" {
-		log.Panicln("Page is not the video streamer, cannot get stream!")
+		return errors.New("page is not the video streamer, cannot get stream")
 	}
 
 	err := proto.PageBringToFront{}.Call(videoCapturePage)
@@ -139,12 +159,12 @@ func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstrai
 
 		return nil, nil
 	})
-
+	return nil
 }
 
 // MustStopStream Stops the Stream
-func MustStopStream(videoCapturePage *rod.Page, ch chan string) error {
-	fmt.Println("Stopping stream", videoCapturePage.TargetID, len(ch))
+func MustStopStream(videoCapturePage *rod.Page) error {
+	fmt.Println("Stopping stream", videoCapturePage.TargetID)
 	var pageId proto.TargetTargetID = videoCapturePage.TargetID
 	js := `(function (pageId) {
 		window.STOP_RECORDING(pageId)

@@ -7,10 +7,11 @@ require (
 	github.com/ysmood/gson v0.7.2
 )
 
-require golang.org/x/xerrors v0.0.0-20191011141410-1b5146add898 // indirect
+require golang.org/x/xerrors v0.0.0-20200804184101-5ec99f83aff1 // indirect
 
 require (
 	github.com/ysmood/goob v0.4.0 // indirect
 	github.com/ysmood/leakless v0.8.0 // indirect
-	golang.org/x/mod v0.5.1
+	golang.org/x/exp v0.0.0-20220722155223-a9213eeb770e
+	golang.org/x/mod v0.6.0-dev.0.20220106191415-9b9b3d81d5e3
 )

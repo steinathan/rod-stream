@@ -1,6 +1,6 @@
 # Overview
 
-An extension of [go-rod](https://github.com/go-rod/rod) to retrieve audio and/or video streams of a page
+An extension of [go-rod](https://github.com/go-rod/rod) to retrieve audio or video streams of a page
 
 ## Installation
 
@@ -28,8 +28,7 @@ func main() {
         // .. other options
 		Set("no-sandbox").
 		Devtools(false).
-		Headless(false).
-		Bin("/usr/bin/brave-browser").
+		XVFB().
 		MustLaunch()
 
 	browser := rod.New().ControlURL(l).
@@ -41,11 +40,11 @@ func main() {
 optional if you don't want to do it yourself, override permissions for URLs
 
 ```go
-	// Example URLS to grant permissions to
-	urls := []string{"https://meet.google.com", "https://zoom.us"}
-	if err := rodstream.GrantPermissions(urls, browser); err != nil {
-		log.Panicln(err)
-	}
+// Example URLS to grant permissions to
+urls := []string{"https://meet.google.com", "https://zoom.us"}
+if err := rodstream.GrantPermissions(urls, browser); err != nil {
+	log.Panicln(err)
+}
 ```
 
 Create a rod Page
@@ -65,46 +64,41 @@ page.MustNavigate(url)
 
 ```
 
-## Getting a stream 
-
+## Getting a stream
 
 ```go
-	go func() {
-		// ⚠ Note: the page returned from `MustStreamPage` is not navigatable
-		// so don't replace MustPage() with this
-		extensionTarget := rodstream.MustCreatePage(browser)
+go func() {
+	// ⚠ Note: the page returned from `MustStreamPage` is not navigatable
+	// so don't replace MustPage() with this
+	extensionTarget := rodstream.MustCreatePage(browser)
+	constraints := &rodstream.StreamConstraints{
+		Audio:              true,
+		Video:              true,
+		MimeType:           "video/webm;codecs=vp9,opus",
+		AudioBitsPerSecond: 128000,
+		VideoBitsPerSecond: 2500000,
+		BitsPerSecond:      8000000, // 1080p https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cbitrate
+		FrameSize:          1000,    // option passed to mediaRecorder.start(frameSize)
+	}
+	// Example: Saving to filesystem
+	videoFile, err := os.Create("./videos/video.webm")
+	if err != nil {
+		log.Panicln(err)
+	}
+	// channel to receive the stream
+	ch := make(chan string)
+	if err := rodstream.MustGetStream(extensionTarget, constraints, ch); err != nil {
+		log.Panicln(err)
+	}
 
-		constraints := &rodstream.StreamConstraints{
-			Audio:              true,
-			Video:              true,
-			MimeType:           "video/webm;codecs=vp9,opus",
-			AudioBitsPerSecond: 128000,
-			VideoBitsPerSecond: 2500000,
-			BitsPerSecond:      8000000, // 1080p https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cbitrate
-			FrameSize:          1000,    // option passed to mediaRecorder.start(frameSize)
-		}
-
-		// Example: Saving to filesystem
-		videoFile, err := os.Create("./videos/video.webm")
-		if err != nil {
-			log.Panicln(err)
-		}
-
-		// channel to receive the stream
-		ch := make(chan string)
-		rodstream.MustGetStream(extensionTarget, constraints, ch)
-
-		for b64Str := range ch {
-			//[important] remove base64 prefix
-			buff := rodstream.Parseb64(b64Str)
-
-			// write to File video
-			videoFile.Write(buff)
-		}
-
-	}()
+	for b64Str := range ch {
+		//[important] remove base64 prefix
+		buff := rodstream.Parseb64(b64Str)
+		// write to File video
+		videoFile.Write(buff)
+	}
+}()
 ```
-
 
 Piping to FFMPEG
 
@@ -136,15 +130,18 @@ go func() {
 		log.Panicln(err)
 	}
 }()
-
 ```
 
 ## Running headfull in Docker
-This plugin requires that you run in a headfull mode, so when using docker 
-start rod with 
+
+This plugin requires that you run in a headfull mode, so when using docker
+start rod with or use `XVFB()` while creating a launcher
 
 ```Dockerfile
-# https://helpmanual.io/help/xvfb-run/
 RUN apt update && apt install -y xvfb
 CMD xvfb-run --server-args="-screen 0 1024x768x24" ./cmd-name
 ```
+
+## TODOS
+ - Add test cases
+ - Auto calculate stream bitrate constraints based on window dimensions 
