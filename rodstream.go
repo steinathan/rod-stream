@@ -31,7 +31,7 @@ type StreamConstraints struct {
 }
 
 var (
-	extensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
+	ExtensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
 	extPath     = filepath.Join(getModPath(), "./extension/recorder")
 )
 
@@ -41,7 +41,7 @@ func MustPrepareLauncher() *launcher.Launcher {
 	l := launcher.New().
 		Set("allow-http-screen-capture").
 		Set("enable-usermedia-screen-capturing").
-		Set("whitelisted-extension-id", extensionId).
+		Set("whitelisted-extension-id", ExtensionId).
 		Set("disable-extensions-except", extPath).
 		Set("load-extension", extPath).
 		Set("allow-google-chromefile-access").
@@ -73,7 +73,7 @@ func GrantPermissions(urls []string, browser *rod.Browser) error {
 // returns a page that can be used to capture video
 func MustCreatePage(browser *rod.Browser) *rod.Page {
 	x, _ := proto.BrowserGetBrowserCommandLine{}.Call(browser)
-	if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", extensionId)) {
+	if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
 		panic("Recording extension not initialize properly!")
 	}
 
@@ -158,6 +158,10 @@ func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstrai
 		}
 
 		return nil, nil
+	})
+
+	videoCapturePage.MustExpose("sendError", func(err gson.JSON) (interface{}, error) {
+		panic(err)
 	})
 	return nil
 }

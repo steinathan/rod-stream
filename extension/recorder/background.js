@@ -37,64 +37,72 @@ function START_RECORDING(params) {
 			}
 		},
 		(stream) => {
-			if (!stream) {
-				console.warn("No stream found!")
-			};
-
-			recorder = new MediaRecorder(stream, {
-				ignoreMutedMedia: true,
-				videoMaximizeFrameRate: true,
-				audioBitsPerSecond,
-				videoBitsPerSecond,
-				bitsPerSecond,
-				mimeType,
-			});
-
-			recorders[index] = recorder;
-
-			console.log(recorders)
-
-			recorder.onerror = (event) => {
-				console.error(`error recording stream: ${event.error.name}`)
-				console.error(event)
-			};
-
-			recorder.ondataavailable = async function (event) {
-				if (event.data.size > 0) {
-					const b = new Blob([event.data])
-					const base64Str = await blobToBase64(b)
-
-					if (window.sendWholeData) {
-						window.sendWholeData({
-							type: index,
-							chunk: base64Str,
-						});
+			try {
+				if (!stream) {
+					throw new Error("No stream found!")
+				};
+	
+				recorder = new MediaRecorder(stream, {
+					ignoreMutedMedia: true,
+					videoMaximizeFrameRate: true,
+					audioBitsPerSecond,
+					videoBitsPerSecond,
+					bitsPerSecond,
+					mimeType,
+				});
+	
+				recorders[index] = recorder;
+	
+				console.log(recorders)
+	
+				recorder.onerror = (event) => {
+					console.error(`error recording stream: ${event.error.name}`)
+					console.error(event)
+				};
+	
+				recorder.ondataavailable = async function (event) {
+					if (event.data.size > 0) {
+						const b = new Blob([event.data])
+						const base64Str = await blobToBase64(b)
+	
+						if (window.sendWholeData) {
+							window.sendWholeData({
+								type: index,
+								chunk: base64Str,
+							});
+						}
 					}
-				}
-			};
-
-			recorder.onerror = () => {
-				recorder.stop();
-			}
-
-			recorder.onstop = () => {
-				try {
-					const tracks = stream.getTracks();
-					tracks.forEach(function (track) {
-						track.stop();
-					});
-				} catch (error) { }
-			};
-
-			stream.oninactive = () => {
-				try {
+				};
+	
+				recorder.onerror = () => {
 					recorder.stop();
-				} catch (error) { }
-			};
-
-			// start recording
-			console.log("started recording with frameSize:", frameSize)
-			recorder.start(frameSize);
+				}
+	
+				recorder.onstop = () => {
+					try {
+						const tracks = stream.getTracks();
+						tracks.forEach(function (track) {
+							track.stop();
+						});
+					} catch (error) { }
+				};
+	
+				stream.oninactive = () => {
+					try {
+						recorder.stop();
+					} catch (error) { }
+				};
+	
+				// start recording
+				console.log("started recording with frameSize:", frameSize)
+				recorder.start(frameSize);
+	
+			} catch (error) {
+				if(window.sendError){
+					window.sendError(error.message ?? error)
+				}
+				throw error
+			}
 		}
 	);
 }
