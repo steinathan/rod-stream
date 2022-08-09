@@ -52,6 +52,8 @@ function START_RECORDING(params) {
 
 			recorders[index] = recorder;
 
+			console.log(recorders)
+
 			recorder.onerror = (event) => {
 				console.error(`error recording stream: ${event.error.name}`)
 				console.error(event)
@@ -98,6 +100,9 @@ function START_RECORDING(params) {
 }
 
 function STOP_RECORDING(index) {
-	if (!recorders[index]) return;
+	if (!recorders[index]) {
+		console.error("No recorder found for index:", index)
+		return
+	};
 	recorders[index].stop();
 }

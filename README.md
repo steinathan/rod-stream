@@ -58,7 +58,7 @@ page := stealth.MustPage(browser)
 
 // Other Proto calls
 proto.PageSetAdBlockingEnabled{
-		Enabled: true,
+	Enabled: true,
 }.Call(page)
 
 page.MustNavigate(url)
@@ -69,38 +69,40 @@ page.MustNavigate(url)
 
 
 ```go
-// ⚠ Note: the page returned from `MustStreamPage` is not navigatable
-// so don't replace MustPage() with this
-extensionTarget := rodstream.MustCreatePage(browser)
+	go func() {
+		// ⚠ Note: the page returned from `MustStreamPage` is not navigatable
+		// so don't replace MustPage() with this
+		extensionTarget := rodstream.MustCreatePage(browser)
 
-constraints := &rodstream.StreamConstraints{
-	Audio:              true,
-	Video:              true,
-	MimeType:           "video/webm;codecs=vp9,opus",
-	AudioBitsPerSecond: 128000,
-	VideoBitsPerSecond: 2500000,
-	BitsPerSecond:      8000000, // 1080p https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cbitrate
-	FrameSize:          1000,    // option passed to mediaRecorder.start(frameSize)
-}
+		constraints := &rodstream.StreamConstraints{
+			Audio:              true,
+			Video:              true,
+			MimeType:           "video/webm;codecs=vp9,opus",
+			AudioBitsPerSecond: 128000,
+			VideoBitsPerSecond: 2500000,
+			BitsPerSecond:      8000000, // 1080p https://support.google.com/youtube/answer/1722171?hl=en#zippy=%2Cbitrate
+			FrameSize:          1000,    // option passed to mediaRecorder.start(frameSize)
+		}
 
-// Example: Saving to filesystem
-videoFile, err := os.Create("./videos/video.webm")
-if err != nil {
-    log.Panicln(err)
-}
+		// Example: Saving to filesystem
+		videoFile, err := os.Create("./videos/video.webm")
+		if err != nil {
+			log.Panicln(err)
+		}
 
-// channel to receive the stream
-ch := make(chan string)
-rodstream.MustGetStream(extensionTarget, constraints, ch)
+		// channel to receive the stream
+		ch := make(chan string)
+		rodstream.MustGetStream(extensionTarget, constraints, ch)
 
-for b64Str := range ch {
-    //[important] remove base64 prefix
-    buff := rodstream.Parseb64(b64Str)
-    
-    // write to File video
-	videoFile.Write(buff)
-}
+		for b64Str := range ch {
+			//[important] remove base64 prefix
+			buff := rodstream.Parseb64(b64Str)
 
+			// write to File video
+			videoFile.Write(buff)
+		}
+
+	}()
 ```
 
 
@@ -115,13 +117,13 @@ if err != nil {
 }
 
 defer func() {
-	err := stdin.Close()
+    err := stdin.Close()
     log.Panicln(err)
 }()
 
 for b64Str := range ch {
-	buff := rodstream.Parseb64(b64Str)
-	_, err = stdin.Write(buff)
+    buff := rodstream.Parseb64(b64Str)
+    _, err = stdin.Write(buff)
     log.Panicln(err)
 }
 ```
@@ -129,6 +131,12 @@ for b64Str := range ch {
 ## Closing a stream
 
 ```go
+go func() {
+	if err := rodstream.MustStopStream(extensionTarget); err != nil {
+		log.Panicln(err)
+	}
+}()
+
 ```
 
 ## Running headfull in Docker
