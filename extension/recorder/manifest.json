@@ -5,7 +5,14 @@
 	"manifest_version": 2,
 	"background": {
 		"persistent": true,
-		"scripts": ["background.js"]
+		"scripts": [
+			"background.js"
+		]
 	},
-	"permissions": ["tabs", "<all_urls>", "tabCapture"]
+	"permissions": [
+		"<all_urls>",
+		"tabs",
+		"tabCapture",
+		"activeTab"
+	]
 }

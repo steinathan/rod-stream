@@ -35,10 +35,21 @@ var (
 	extPath     = filepath.Join(getModPath(), "./extension/recorder")
 )
 
-// MustPrepareLauncher loads the extension and sets required parameters
-func MustPrepareLauncher() *launcher.Launcher {
+type LauncherArgs struct {
+	UserMode bool
+}
 
-	l := launcher.New().
+// MustPrepareLauncher loads the extension and sets required parameters
+func MustPrepareLauncher(args LauncherArgs) *launcher.Launcher {
+	var l *launcher.Launcher
+
+	if args.UserMode {
+		l = launcher.NewUserMode()
+	} else {
+		l = launcher.New()
+	}
+
+	l = l.
 		Set("allow-http-screen-capture").
 		Set("enable-usermedia-screen-capturing").
 		Set("whitelisted-extension-id", ExtensionId).
@@ -50,7 +61,7 @@ func MustPrepareLauncher() *launcher.Launcher {
 	return l
 }
 
-// GrantPermissions grants Video & Audio permissions to the
+// GrantPermissions grants Video & Audio permissions to the urls
 func GrantPermissions(urls []string, browser *rod.Browser) error {
 	if len(urls) == 0 {
 		return errors.New("at least one url is required")
@@ -73,8 +84,11 @@ func GrantPermissions(urls []string, browser *rod.Browser) error {
 // returns a page that can be used to capture video
 func MustCreatePage(browser *rod.Browser) *rod.Page {
 	x, _ := proto.BrowserGetBrowserCommandLine{}.Call(browser)
-	if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
-		panic("Recording extension not initialize properly!")
+
+	if len(x.Arguments) > 0 {
+		if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
+			panic("Recording extension not initialize properly!")
+		}
 	}
 
 	if slices.Contains(x.Arguments, "--headless") {
