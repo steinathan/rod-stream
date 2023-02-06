@@ -30,14 +30,19 @@ type StreamConstraints struct {
 	FrameSize          int    `json:"frameSize,omitempty"`
 }
 
-var (
-	ExtensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
-	extPath     = filepath.Join(getModPath(), "./extension/recorder")
-)
+type PageInfo struct {
+	CapturePage *rod.Page
+	Chan        chan string // recording channel
+}
 
 type LauncherArgs struct {
 	UserMode bool
 }
+
+var (
+	ExtensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
+	extPath     = filepath.Join(getModPath(), "./extension/recorder")
+)
 
 // MustPrepareLauncher loads the extension and sets required parameters
 func MustPrepareLauncher(args LauncherArgs) *launcher.Launcher {
@@ -82,7 +87,7 @@ func GrantPermissions(urls []string, browser *rod.Browser) error {
 
 // MustCreatePage Must call the browser to capture the extension first handshake
 // returns a page that can be used to capture video
-func MustCreatePage(browser *rod.Browser) *rod.Page {
+func MustCreatePage(browser *rod.Browser) *PageInfo {
 	x, _ := proto.BrowserGetBrowserCommandLine{}.Call(browser)
 
 	if len(x.Arguments) > 0 {
@@ -119,11 +124,17 @@ func MustCreatePage(browser *rod.Browser) *rod.Page {
 		}
 	}
 
-	return videoCapturePage
+	return &PageInfo{
+		CapturePage: videoCapturePage,
+		Chan:        make(chan string),
+	}
 }
 
 // MustGetStream Gets a stream from the browser's page
-func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstraints, ch chan string) error {
+func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan string) error {
+	var (
+		videoCapturePage = page.CapturePage
+	)
 	if videoCapturePage == nil {
 		return errors.New("videoCapturePage not created yet, call MustCreatePage")
 	}
@@ -170,24 +181,29 @@ func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstrai
 			chunk := data.Get("chunk").String()
 			ch <- chunk
 		}
-
 		return nil, nil
 	})
 
 	videoCapturePage.MustExpose("sendError", func(err gson.JSON) (interface{}, error) {
 		panic(err)
 	})
+	page.Chan = ch
 	return nil
 }
 
 // MustStopStream Stops the Stream
-func MustStopStream(videoCapturePage *rod.Page) error {
-	fmt.Println("Stopping stream", videoCapturePage.TargetID)
-	var pageId proto.TargetTargetID = videoCapturePage.TargetID
+func MustStopStream(page *PageInfo) error {
+	var (
+		videoCapturePage = page.CapturePage
+		pageId           = videoCapturePage.TargetID
+	)
+
 	js := `(function (pageId) {
 		window.STOP_RECORDING(pageId)
 	})`
 	_, err := videoCapturePage.Eval(js, pageId)
+
+	close(page.Chan)
 	return err
 }
 
