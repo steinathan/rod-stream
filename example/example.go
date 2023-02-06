@@ -1,44 +1,32 @@
-package rodstream_test
+package main
 
 import (
 	"log"
 	"os"
-	"testing"
 	"time"
 
 	"github.com/go-rod/rod"
 	rodstream "github.com/navicstein/rod-stream"
 )
 
-func TestMustPrepareLauncher(t *testing.T) {
+func createBrowser() *rod.Browser {
 	var l = rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
 		UserMode: false,
-	})
-	hasExtension := l.Flags["whitelisted-extension-id"]
+	}).
+		Bin("/usr/bin/brave-browser").
+		MustLaunch()
 
-	if len(hasExtension) == 0 {
-		t.Error("whitelisted-extension-id is not set")
-	}
+	browser := rod.New().ControlURL(l).
+		NoDefaultDevice().
+		MustConnect()
 
-	if hasExtension[0] != rodstream.ExtensionId {
-		t.Errorf("Extension is invalid")
-	}
-
+	return browser
 }
 
-func TestMustCreatePage(t *testing.T) {
-	browser := createBrowser()
-	pageInfo := rodstream.MustCreatePage(browser)
-	if pageInfo.CapturePage.MustInfo().Title != "Video Streamer" {
-		t.Errorf("Page title is invalid, got '%s'", pageInfo.CapturePage.MustInfo().Title)
-	}
-
-}
-
-func TestMustGetStream(t *testing.T) {
+func main() {
 	url := "https://www.youtube.com/watch?v=Jl8iYAo90pE"
 	browser := createBrowser()
-	constraints := &rodstream.StreamConstraints{
+	constraints := rodstream.StreamConstraints{
 		Audio:              true,
 		Video:              true,
 		MimeType:           "video/webm;codecs=vp9,opus",
@@ -56,10 +44,11 @@ func TestMustGetStream(t *testing.T) {
 	pageInfo := rodstream.MustCreatePage(browser)
 	streamCh := make(chan string, 1024)
 
-	if err := rodstream.MustGetStream(pageInfo, *constraints, streamCh); err != nil {
+	if err := rodstream.MustGetStream(pageInfo, constraints, streamCh); err != nil {
 		log.Panicln(err)
 	}
 
+	// wait then close
 	time.AfterFunc(time.Second*10, func() {
 		rodstream.MustStopStream(pageInfo)
 		browser.Close()
@@ -74,18 +63,4 @@ func TestMustGetStream(t *testing.T) {
 		b := rodstream.Parseb64(x)
 		videoFile.Write(b)
 	}
-}
-
-func createBrowser() *rod.Browser {
-	var l = rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
-		UserMode: false,
-	}).
-		Bin("/usr/bin/brave-browser").
-		MustLaunch()
-
-	browser := rod.New().ControlURL(l).
-		NoDefaultDevice().
-		MustConnect()
-
-	return browser
 }

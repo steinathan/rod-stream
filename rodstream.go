@@ -30,15 +30,33 @@ type StreamConstraints struct {
 	FrameSize          int    `json:"frameSize,omitempty"`
 }
 
+type PageInfo struct {
+	CapturePage *rod.Page
+	StopStream  bool
+
+	Chan chan string // recording channel
+}
+
+type LauncherArgs struct {
+	UserMode bool
+}
+
 var (
 	ExtensionId = "jjndjgheafjngoipoacpjgeicjeomjli"
 	extPath     = filepath.Join(getModPath(), "./extension/recorder")
 )
 
 // MustPrepareLauncher loads the extension and sets required parameters
-func MustPrepareLauncher() *launcher.Launcher {
+func MustPrepareLauncher(args LauncherArgs) *launcher.Launcher {
+	var l *launcher.Launcher
 
-	l := launcher.New().
+	if args.UserMode {
+		l = launcher.NewUserMode()
+	} else {
+		l = launcher.New()
+	}
+
+	l = l.
 		Set("allow-http-screen-capture").
 		Set("enable-usermedia-screen-capturing").
 		Set("whitelisted-extension-id", ExtensionId).
@@ -50,7 +68,7 @@ func MustPrepareLauncher() *launcher.Launcher {
 	return l
 }
 
-// GrantPermissions grants Video & Audio permissions to the
+// GrantPermissions grants Video & Audio permissions to the urls
 func GrantPermissions(urls []string, browser *rod.Browser) error {
 	if len(urls) == 0 {
 		return errors.New("at least one url is required")
@@ -71,10 +89,13 @@ func GrantPermissions(urls []string, browser *rod.Browser) error {
 
 // MustCreatePage Must call the browser to capture the extension first handshake
 // returns a page that can be used to capture video
-func MustCreatePage(browser *rod.Browser) *rod.Page {
+func MustCreatePage(browser *rod.Browser) *PageInfo {
 	x, _ := proto.BrowserGetBrowserCommandLine{}.Call(browser)
-	if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
-		panic("Recording extension not initialize properly!")
+
+	if len(x.Arguments) > 0 {
+		if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
+			panic("Recording extension not initialize properly!")
+		}
 	}
 
 	if slices.Contains(x.Arguments, "--headless") {
@@ -105,11 +126,17 @@ func MustCreatePage(browser *rod.Browser) *rod.Page {
 		}
 	}
 
-	return videoCapturePage
+	return &PageInfo{
+		CapturePage: videoCapturePage,
+		Chan:        make(chan string),
+	}
 }
 
 // MustGetStream Gets a stream from the browser's page
-func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstraints, ch chan string) error {
+func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan string) error {
+	var (
+		videoCapturePage = page.CapturePage
+	)
 	if videoCapturePage == nil {
 		return errors.New("videoCapturePage not created yet, call MustCreatePage")
 	}
@@ -154,26 +181,38 @@ func MustGetStream(videoCapturePage *rod.Page, streamConstraints *StreamConstrai
 	videoCapturePage.MustExpose("sendWholeData", func(data gson.JSON) (interface{}, error) {
 		if data.Has("type") && data.Has("chunk") {
 			chunk := data.Get("chunk").String()
-			ch <- chunk
+			rod.Try(func() {
+				if !page.StopStream {
+					ch <- chunk
+				} else {
+					close(ch)
+				}
+			})
 		}
-
 		return nil, nil
 	})
 
 	videoCapturePage.MustExpose("sendError", func(err gson.JSON) (interface{}, error) {
 		panic(err)
 	})
+	page.Chan = ch
 	return nil
 }
 
 // MustStopStream Stops the Stream
-func MustStopStream(videoCapturePage *rod.Page) error {
-	fmt.Println("Stopping stream", videoCapturePage.TargetID)
-	var pageId proto.TargetTargetID = videoCapturePage.TargetID
+func MustStopStream(page *PageInfo) error {
+	var (
+		videoCapturePage = page.CapturePage
+		pageId           = videoCapturePage.TargetID
+	)
+
 	js := `(function (pageId) {
 		window.STOP_RECORDING(pageId)
 	})`
 	_, err := videoCapturePage.Eval(js, pageId)
+
+	log.Println("stopped recording...")
+	page.StopStream = true
 	return err
 }
 

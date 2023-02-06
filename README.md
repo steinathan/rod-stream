@@ -5,7 +5,7 @@ An extension of [go-rod](https://github.com/go-rod/rod) to retrieve audio or vid
 ## Installation
 
 ```sh
-$ go get github.com/navicstein/go-stream
+$ go get github.com/navicstein/rod-stream
 ```
 
 ## Usage
