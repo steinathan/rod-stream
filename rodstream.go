@@ -32,7 +32,9 @@ type StreamConstraints struct {
 
 type PageInfo struct {
 	CapturePage *rod.Page
-	Chan        chan string // recording channel
+	StopStream  bool
+
+	Chan chan string // recording channel
 }
 
 type LauncherArgs struct {
@@ -179,7 +181,13 @@ func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan 
 	videoCapturePage.MustExpose("sendWholeData", func(data gson.JSON) (interface{}, error) {
 		if data.Has("type") && data.Has("chunk") {
 			chunk := data.Get("chunk").String()
-			ch <- chunk
+			rod.Try(func() {
+				if !page.StopStream {
+					ch <- chunk
+				} else {
+					close(ch)
+				}
+			})
 		}
 		return nil, nil
 	})
@@ -203,7 +211,8 @@ func MustStopStream(page *PageInfo) error {
 	})`
 	_, err := videoCapturePage.Eval(js, pageId)
 
-	close(page.Chan)
+	log.Println("stopped recording...")
+	page.StopStream = true
 	return err
 }
 
