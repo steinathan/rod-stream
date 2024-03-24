@@ -132,16 +132,6 @@ go func() {
 }()
 ```
 
-## Running headfull in Docker
-
-This plugin requires that you run in a headfull mode, so when using docker
-start rod with or use `XVFB()` while creating a launcher
-
-```Dockerfile
-RUN apt update && apt install -y xvfb
-CMD xvfb-run --server-args="-screen 0 1024x768x24" ./cmd-name
-```
-
 ## TODOS
  - Add test cases
  - Auto calculate stream bitrate constraints based on window dimensions 
