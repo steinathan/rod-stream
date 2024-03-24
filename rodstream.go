@@ -63,7 +63,7 @@ func MustPrepareLauncher(args LauncherArgs) *launcher.Launcher {
 		Set("disable-extensions-except", extPath).
 		Set("load-extension", extPath).
 		Set("allow-google-chromefile-access").
-		Headless(false)
+		Set("headless", "new")
 
 	return l
 }
@@ -96,14 +96,6 @@ func MustCreatePage(browser *rod.Browser) *PageInfo {
 		if !slices.Contains(x.Arguments, fmt.Sprintf("--whitelisted-extension-id=%s", ExtensionId)) {
 			panic("Recording extension not initialize properly!")
 		}
-	}
-
-	if slices.Contains(x.Arguments, "--headless") {
-		msg := `
-		Headless mode is not supported for rod-stream.
-		use "XVFB()" in place of "Headless(true)".
-		`
-		panic(msg)
 	}
 
 	var (
