@@ -14,13 +14,18 @@ func TestMustPrepareLauncher(t *testing.T) {
 	var l = rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
 		UserMode: false,
 	})
-	hasExtension := l.Flags["whitelisted-extension-id"]
 
-	if len(hasExtension) == 0 {
-		t.Error("whitelisted-extension-id is not set")
+	var extensionId []string
+
+	if value, ok := l.Flags["whitelisted-extension-id"]; ok {
+		extensionId = value
+	} else if value, ok := l.Flags["allowlisted-extension-id"]; ok {
+		extensionId = value
+	} else {
+		t.Error("Neither whitelisted-extension-id nor allowlisted-extension-id is set")
 	}
 
-	if hasExtension[0] != rodstream.ExtensionId {
+	if extensionId[0] != rodstream.ExtensionId {
 		t.Errorf("Extension is invalid")
 	}
 
