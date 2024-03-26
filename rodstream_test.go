@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/go-rod/rod"
+	"github.com/go-rod/rod/lib/launcher"
 	rodstream "github.com/navicstein/rod-stream"
 )
 
@@ -77,10 +78,12 @@ func TestMustGetStream(t *testing.T) {
 }
 
 func createBrowser() *rod.Browser {
+	path, _ := launcher.LookPath()
+
 	var l = rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
 		UserMode: false,
 	}).
-		Bin("/usr/bin/brave-browser").
+		Bin(path).
 		MustLaunch()
 
 	browser := rod.New().ControlURL(l).
