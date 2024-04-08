@@ -66,20 +66,32 @@ func TestMustGetStream(t *testing.T) {
 		log.Panicln(err)
 	}
 
-	time.AfterFunc(time.Second*10, func() {
-		rodstream.MustStopStream(pageInfo)
-		browser.Close()
+	time.AfterFunc(time.Minute, func() {
+		if err := rodstream.MustStopStream(pageInfo); err != nil {
+			log.Panicln(err)
+		}
+		browser.MustClose()
+		os.Exit(0)
 	})
 
-	videoFile, err := os.Create("/tmp/video-test.webm")
+	fpath := "/tmp/video-test.webm"
+	videoFile, err := os.Create(fpath)
 	if err != nil {
 		panic(err)
 	}
 
-	for x := range streamCh {
-		b := rodstream.Parseb64(x)
+	for {
+		b64Str, ok := <-streamCh
+		if !ok {
+			close(streamCh)
+			break
+		}
+
+		b := rodstream.Parseb64(b64Str)
 		videoFile.Write(b)
 	}
+
+	t.Logf("recording stopped, video available here: %s", fpath)
 }
 
 func createBrowser() *rod.Browser {
