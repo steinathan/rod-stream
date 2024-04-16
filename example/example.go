@@ -10,7 +10,7 @@ import (
 )
 
 func createBrowser() *rod.Browser {
-	var l = rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
+	l := rodstream.MustPrepareLauncher(rodstream.LauncherArgs{
 		UserMode: false,
 	}).
 		Bin("/usr/bin/brave-browser").

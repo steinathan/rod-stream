@@ -126,9 +126,8 @@ func MustCreatePage(browser *rod.Browser) *PageInfo {
 
 // MustGetStream Gets a stream from the browser's page
 func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan string) error {
-	var (
-		videoCapturePage = page.CapturePage
-	)
+	videoCapturePage := page.CapturePage
+
 	if videoCapturePage == nil {
 		return errors.New("videoCapturePage not created yet, call MustCreatePage")
 	}
@@ -181,6 +180,7 @@ func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan 
 				}
 			})
 		}
+
 		return nil, nil
 	})
 
@@ -188,6 +188,7 @@ func MustGetStream(page *PageInfo, streamConstraints StreamConstraints, ch chan 
 		panic(err)
 	})
 	page.Chan = ch
+
 	return nil
 }
 
@@ -205,6 +206,7 @@ func MustStopStream(page *PageInfo) error {
 
 	log.Println("stopped recording...")
 	page.StopStream = true
+
 	return err
 }
 
@@ -245,6 +247,7 @@ func Parseb64(data string) []byte {
 	if err != nil {
 		panic(err)
 	}
+
 	return f
 }
 

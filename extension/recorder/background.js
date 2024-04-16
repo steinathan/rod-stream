@@ -4,9 +4,9 @@
 const recorders = {};
 
 /**
- * 
- * @param {*} blob 
- * @returns 
+ *
+ * @param {*} blob
+ * @returns
  */
 function blobToBase64(blob) {
 	return new Promise((resolve, _) => {
@@ -41,7 +41,7 @@ function START_RECORDING(params) {
 				if (!stream) {
 					throw new Error("No stream found!")
 				};
-	
+
 				recorder = new MediaRecorder(stream, {
 					ignoreMutedMedia: true,
 					videoMaximizeFrameRate: true,
@@ -50,21 +50,21 @@ function START_RECORDING(params) {
 					bitsPerSecond,
 					mimeType,
 				});
-	
+
 				recorders[index] = recorder;
-	
+
 				console.log(recorders)
-	
+
 				recorder.onerror = (event) => {
 					console.error(`error recording stream: ${event.error.name}`)
 					console.error(event)
 				};
-	
+
 				recorder.ondataavailable = async function (event) {
 					if (event.data.size > 0) {
 						const b = new Blob([event.data])
 						const base64Str = await blobToBase64(b)
-	
+
 						if (window.sendWholeData) {
 							window.sendWholeData({
 								type: index,
@@ -73,11 +73,11 @@ function START_RECORDING(params) {
 						}
 					}
 				};
-	
+
 				recorder.onerror = () => {
 					recorder.stop();
 				}
-	
+
 				recorder.onstop = () => {
 					try {
 						const tracks = stream.getTracks();
@@ -86,19 +86,19 @@ function START_RECORDING(params) {
 						});
 					} catch (error) { }
 				};
-	
+
 				stream.oninactive = () => {
 					try {
 						recorder.stop();
 					} catch (error) { }
 				};
-	
+
 				// start recording
 				console.log("started recording with frameSize:", frameSize)
 				recorder.start(frameSize);
-	
+
 			} catch (error) {
-				if(window.sendError){
+				if (window.sendError) {
 					window.sendError(error.message ?? error)
 				}
 				throw error

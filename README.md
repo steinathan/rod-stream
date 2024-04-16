@@ -134,4 +134,4 @@ go func() {
 
 ## TODOS
  - Add test cases
- - Auto calculate stream bitrate constraints based on window dimensions 
+ - Auto calculate stream bitrate constraints based on window dimensions
