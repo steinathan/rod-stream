@@ -66,12 +66,12 @@ func TestMustGetStream(t *testing.T) {
 		log.Panicln(err)
 	}
 
-	time.AfterFunc(time.Minute, func() {
+	time.AfterFunc(time.Second*10, func() {
 		if err := rodstream.MustStopStream(pageInfo); err != nil {
 			log.Panicln(err)
 		}
 		browser.MustClose()
-		os.Exit(0)
+		close(streamCh)
 	})
 
 	fpath := "/tmp/video-test.webm"
@@ -83,7 +83,6 @@ func TestMustGetStream(t *testing.T) {
 	for {
 		b64Str, ok := <-streamCh
 		if !ok {
-			close(streamCh)
 			break
 		}
 
