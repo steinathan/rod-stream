@@ -109,8 +109,9 @@ function START_RECORDING(params) {
 
 function STOP_RECORDING(index) {
 	if (!recorders[index]) {
-		console.error("No recorder found for index:", index)
-		return
+		const msg = `No recorder found for index:${index}`
+		console.error(msg);
+		return window.sendError(msg)
 	};
 	recorders[index].stop();
 }
