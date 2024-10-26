@@ -24,17 +24,17 @@ function START_RECORDING(params) {
 		{
 			audio,
 			video,
-			audioConstraints: {
+			audioConstraints: audio ? {
 				mandatory: {
 					chromeMediaSource: 'tab',
 					echoCancellation: true
 				}
-			},
-			videoConstraints: {
+			} : undefined,
+			videoConstraints: video ? {
 				mandatory: {
 					chromeMediaSource: 'tab',
 				}
-			}
+			} : undefined
 		},
 		(stream) => {
 			try {
